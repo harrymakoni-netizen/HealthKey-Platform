@@ -66,7 +66,9 @@ docker("start", "healthkey-db");
 let databaseReady = false;
 for (let i = 0; i < 30; i++) {
   try {
-    docker("exec", "healthkey-db", "pg_isready", "-U", "postgres");
+    // The image briefly starts a socket-only server during first-time init.
+    // TCP readiness waits for the final server, avoiding its shutdown window.
+    docker("exec", "healthkey-db", "pg_isready", "-h", "127.0.0.1", "-U", "postgres");
     databaseReady = true;
     break;
   } catch {
