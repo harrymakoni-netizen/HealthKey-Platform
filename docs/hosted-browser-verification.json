@@ -1,0 +1,15 @@
+{
+  "url": "https://healthkey-omega.vercel.app",
+  "checked_at": "2026-10-09T18:50:31.190Z",
+  "result": "passed",
+  "checks": [
+    "390px welcome rendering",
+    "English/Shona/Ndebele switch",
+    "Anonymous submission and receipt",
+    "Public screen clearing",
+    "Separate staff sign-in",
+    "Acknowledge/start/complete",
+    "Staff logout"
+  ],
+  "proxyTrust": "Pinned the managed workspace proxy CA for browser automation; public TLS independently verified by curl."
+}

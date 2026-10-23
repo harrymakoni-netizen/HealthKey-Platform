@@ -1,0 +1,112 @@
+{
+  "settings": {
+    "communication_options": [
+      "spoken",
+      "writing",
+      "pictures",
+      "sign",
+      "support"
+    ],
+    "name": "HealthKey Demo Clinic",
+    "languages": ["en", "sn", "nd"],
+    "idle_seconds": 90,
+    "ttl_minutes": 60,
+    "urgent_enabled": true,
+    "open": "00:00",
+    "close": "23:59",
+    "after_hours": "Please ask clinic staff about local after-hours support.",
+    "translation_reviewed": false
+  },
+  "services": [
+    [
+      "sexual_health",
+      "heart",
+      "Sexual health",
+      "Hutano hwepabonde",
+      "Impilo yezocansi",
+      "STI, HIV and sexual health support",
+      "Rubatsiro rweSTI, HIV nehutano hwepabonde",
+      "Usizo lwe-STI, HIV lempilo yezocansi"
+    ],
+    [
+      "family_planning",
+      "flower",
+      "Family planning",
+      "Kuronga mhuri",
+      "Ukuhlela imuli",
+      "Contraception and family planning",
+      "Kudzivirira pamuviri nekuronga mhuri",
+      "Ukuvimbela ukukhulelwa lokuhlela imuli"
+    ],
+    [
+      "pregnancy_support",
+      "baby",
+      "Pregnancy support",
+      "Rubatsiro rwepamuviri",
+      "Usizo lokukhulelwa",
+      "Support before or during pregnancy",
+      "Rubatsiro musati kana muri pamuviri",
+      "Usizo ungakakhulelwa kumbe ukhulelwe"
+    ],
+    [
+      "mental_health",
+      "sun",
+      "Emotional wellbeing",
+      "Hutano hwepfungwa",
+      "Impilo yengqondo",
+      "Someone to talk to about how you feel",
+      "Munhu wekutaura naye nezvamunonzwa",
+      "Umuntu wokukhuluma laye ngokuzizwa kwakho"
+    ],
+    [
+      "violence_support",
+      "shield",
+      "Safety & support",
+      "Kuchengetedzeka nerubatsiro",
+      "Ukuvikeleka losizo",
+      "Private support with safety concerns",
+      "Rubatsiro rwakavanzika pakuchengetedzeka",
+      "Usizo oluyimfihlo ngokuvikeleka"
+    ],
+    [
+      "substance_support",
+      "leaf",
+      "Substance-use support",
+      "Rubatsiro rwezvinodhaka",
+      "Usizo ngokusebenzisa izidakamizwa",
+      "Non-judgmental support and counselling",
+      "Rubatsiro nekurairwa pasina kutongwa",
+      "Usizo lokwelulekwa ngaphandle kokwahlulelwa"
+    ],
+    [
+      "communication_help",
+      "message",
+      "Communication assistance",
+      "Rubatsiro rwekutaurirana",
+      "Usizo lokukhulumisana",
+      "Help to communicate your needs",
+      "Rubatsiro rwekutaura zvamunoda",
+      "Usizo lokutsho okudingayo"
+    ],
+    [
+      "other_private",
+      "lock",
+      "Another private matter",
+      "Imwe nyaya yakavanzika",
+      "Enye indaba eyimfihlo",
+      "Speak privately with a staff member",
+      "Taurai nemushandi zvakavanzika",
+      "Khuluma lomsebenzi ngasese"
+    ],
+    [
+      "urgent_private",
+      "hand",
+      "I need private help now",
+      "Ndinoda rubatsiro rwakavanzika izvozvi",
+      "Ngidinga usizo oluyimfihlo khathesi",
+      "Let staff know you need attention soon",
+      "Udza vashandi kuti unoda rubatsiro nekukurumidza",
+      "Yazisa abasebenzi ukuthi udinga usizo masinyane"
+    ]
+  ]
+}

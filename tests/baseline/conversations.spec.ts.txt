@@ -1,0 +1,241 @@
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { readFileSync } from "node:fs";
+const password = JSON.parse(
+  readFileSync(".local/secrets.json", "utf8"),
+).password;
+async function submit(page: import("@playwright/test").Page, kiosk = false) {
+  await page.goto(kiosk ? "/c/HK001?kiosk=1" : "/c/HK001");
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  await page.getByRole("radio", { name: /Family planning/ }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step" }).click();
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  await expect(page.locator(".receipt strong")).toBeVisible();
+  const reference = await page.locator(".receipt strong").textContent();
+  await page.getByRole("button", { name: "Show private access code" }).click();
+  const key = await page
+    .getByRole("textbox", { name: "Private access code", exact: true })
+    .inputValue();
+  return { reference: reference!, key };
+}
+test("patient re-entry, progress and two-way staff conversation close privately", async ({
+  page,
+  browser,
+}) => {
+  const { reference, key } = await submit(page);
+  await page
+    .getByRole("button", { name: "Clear screen", exact: true })
+    .last()
+    .click();
+  await page
+    .getByRole("button", { name: "Check my request", exact: true })
+    .click();
+  await page.getByLabel("Private access code", { exact: true }).fill(key);
+  await page
+    .getByRole("button", { name: "Open my request", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Waiting for staff", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "I prefer to write.", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  const staff = await browser.newPage();
+  await staff.goto("/staff");
+  await staff.getByLabel("Work email").fill("intake@healthkey.test");
+  await staff.getByLabel("Password", { exact: true }).fill(password);
+  await staff.getByRole("button", { name: "Sign in securely" }).click();
+  await staff.getByRole("button", { name: reference, exact: true }).click();
+  await expect(
+    staff.getByRole("log").getByText("I prefer to write.", { exact: true }),
+  ).toBeVisible();
+  await staff
+    .getByLabel("Message", { exact: true })
+    .fill("Please wait by reception.");
+  await staff
+    .getByRole("button", { name: "Send message", exact: true })
+    .click();
+  await expect(
+    page.getByRole("log").getByText("Please wait by reception."),
+  ).toBeVisible({ timeout: 15000 });
+  await staff.getByRole("button", { name: "Acknowledge", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "A staff member has seen your request",
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 15000 });
+  await staff
+    .getByRole("button", { name: "Start support", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Staff are helping you", exact: true }),
+  ).toBeVisible({ timeout: 15000 });
+  await page.screenshot({
+    path: "docs/patient-conversation.png",
+    fullPage: true,
+  });
+  await staff.screenshot({
+    path: "docs/staff-conversation.png",
+    fullPage: true,
+  });
+  await staff
+    .getByRole("button", { name: "Complete request", exact: true })
+    .click();
+  await expect(
+    page.getByText("This conversation has ended. Messages have been cleared."),
+  ).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Please wait by reception.")).toHaveCount(0);
+  expect(
+    await page.evaluate(() => [localStorage.length, sessionStorage.length]),
+  ).toEqual([0, 0]);
+  await staff.close();
+});
+test("short clinic references cannot open messages; private entry is accessible at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Check my request" }).click();
+  await page.getByLabel("Private access code", { exact: true }).fill("ABC123");
+  await page.getByRole("button", { name: "Open my request" }).click();
+  await expect(page.locator("p[role=alert]")).toContainText("We couldn’t open");
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+test("private conversation has no automated AA violations and reflows on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await submit(page);
+  await page.getByRole("button", { name: "View progress & messages" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Waiting for staff", exact: true }),
+  ).toBeVisible();
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "docs/mobile-conversation.png",
+    fullPage: true,
+  });
+});
+test("offline messages are never sent on reconnect and kiosk clears private access", async ({
+  page,
+  context,
+}) => {
+  await submit(page);
+  await page.getByRole("button", { name: "View progress & messages" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Waiting for staff", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill("Unsent offline draft");
+  let sends = 0;
+  page.on("request", (r) => {
+    if (r.url().endsWith("/conversation") && r.postDataJSON()?.message) sends++;
+  });
+  await context.setOffline(true);
+  await expect(
+    page.getByRole("button", { name: "Send message", exact: true }),
+  ).toBeDisabled();
+  await context.setOffline(false);
+  await page.waitForTimeout(6000);
+  expect(sends).toBe(0);
+  await page
+    .getByRole("button", { name: "Clear screen", exact: true })
+    .last()
+    .click();
+  await expect(page.getByLabel("Message", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+});
+
+test("a lost chat response can be retried without sending a duplicate", async ({
+  page,
+}) => {
+  await submit(page);
+  await page.getByRole("button", { name: "View progress & messages" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Waiting for staff", exact: true }),
+  ).toBeVisible();
+  let sends = 0;
+  await page.route("**/conversation", async (route) => {
+    if (route.request().postDataJSON()?.message) {
+      sends++;
+      if (sends === 1) {
+        await route.fetch();
+        await route.abort("failed");
+        return;
+      }
+    }
+    await route.continue();
+  });
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill("Synthetic retry check");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(page.locator("p[role=alert]")).toContainText(
+    "Delivery was not confirmed",
+  );
+  await page.waitForTimeout(1200);
+  expect(sends).toBe(1);
+  await page
+    .getByRole("button", { name: "Retry message", exact: true })
+    .click();
+  await expect(
+    page.getByRole("log").getByText("Synthetic retry check", { exact: true }),
+  ).toHaveCount(1);
+  expect(sends).toBe(2);
+});
+test("kiosk timeout clears an open conversation and its private code", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await submit(page, true);
+  await expect(
+    page.getByRole("button", { name: "Copy code", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "View progress & messages" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Waiting for staff", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill("Private unsent draft");
+  await page.clock.fastForward(91000);
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+  await expect(page.getByRole("log")).toHaveCount(0);
+  await expect(
+    page.getByLabel("Private access code", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Private unsent draft")).toHaveCount(0);
+});

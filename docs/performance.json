@@ -1,0 +1,6 @@
+{
+  "environment": "Local production build, Chromium, 390x844, 150ms network latency, 1.6Mbps down/0.75Mbps up, 4x CPU slowdown",
+  "ready_ms": 2640,
+  "javascript_bytes": 147370,
+  "note": "Single synthetic run; not a field performance or uptime guarantee."
+}

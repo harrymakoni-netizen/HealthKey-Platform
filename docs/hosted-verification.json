@@ -1,0 +1,18 @@
+{
+  "target": "https://healthkey-omega.vercel.app",
+  "checked_at": "2026-10-10T11:15:53.087Z",
+  "checks": [
+    "Hosted health and cleanup readiness",
+    "Synthetic clinic and three-language catalogue",
+    "Staff queue requires authentication",
+    "Public API rejects identifying fields",
+    "Anonymous request receipt hides category",
+    "Hosted staff authentication and secure cookies",
+    "Cross-clinic read and mutation isolation",
+    "Administrator configuration and request-access separation",
+    "Two-way hosted messages, idempotent retry and clinic isolation",
+    "Acknowledge, support and completion lifecycle",
+    "Closed conversation clears messages and rejects further sends",
+    "Staff logout"
+  ]
+}

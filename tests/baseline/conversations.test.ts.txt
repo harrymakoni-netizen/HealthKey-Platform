@@ -1,0 +1,256 @@
+import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
+import { Pool } from "pg";
+import { randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import {
+  accessCapability,
+  newAccessCode,
+  displayAccessCode,
+} from "../src/lib/private-access";
+import { conversationCopy } from "../src/i18n/conversations";
+process.loadEnvFile(".env.local");
+if (
+  process.env.DEMO_MODE !== "true" ||
+  !["localhost", "127.0.0.1"].includes(
+    new URL(process.env.MIGRATION_DATABASE_URL!).hostname,
+  )
+)
+  throw Error("Local synthetic database only");
+const owner = new Pool({
+  connectionString: process.env.MIGRATION_DATABASE_URL,
+});
+const password = JSON.parse(
+  readFileSync(".local/secrets.json", "utf8"),
+).password;
+const sessions: Record<string, string> = {};
+const ids: string[] = [];
+let capability: string, id: string, service: string;
+async function call(
+  path: string,
+  body?: unknown,
+  cookie?: string,
+  method?: string,
+) {
+  return fetch("http://localhost:3000/api/" + path, {
+    method: method ?? (body ? "POST" : "GET"),
+    headers: {
+      Origin: "http://localhost:3000",
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+async function room(message?: { message: string; nonce: string }) {
+  return call("public/clinics/HK001/conversation", {
+    capability,
+    ...(message ? { message } : {}),
+  });
+}
+beforeAll(async () => {
+  const config = await (await call("public/clinics/HK001/config")).json();
+  service = config.services.find(
+    (s: { key: string }) => s.key === "sexual_health",
+  ).id;
+  for (const role of ["intake", "other", "clinician", "admin"]) {
+    const r = await call("auth/login", {
+      email: role + "@healthkey.test",
+      password,
+    });
+    expect(r.status).toBe(200);
+    sessions[role] = r.headers
+      .getSetCookie()
+      .find((x) => x.startsWith("hk_staff="))!
+      .split(";")[0];
+  }
+});
+beforeEach(async () => {
+  capability = randomBytes(32).toString("base64url");
+  const r = await call("public/clinics/HK001/requests", {
+    service_id: service,
+    communication_pref: "writing",
+    capability,
+  });
+  expect(r.status).toBe(201);
+  const receipt = await r.json();
+  const queue = await (
+    await call("staff/queue", undefined, sessions.intake)
+  ).json();
+  id = queue.requests.find(
+    (r: { public_code: string }) => r.public_code === receipt.public_code,
+  ).id;
+  ids.push(id);
+});
+afterAll(async () => {
+  if (ids.length) {
+    await owner.query(
+      "UPDATE hk.requests_active SET status='cancelled' WHERE id=ANY($1::uuid[])",
+      [ids],
+    );
+    await owner.query("SELECT hk.cleanup()");
+  }
+  await owner.end();
+});
+describe("ephemeral conversations", () => {
+  it("requires the private capability and the matching clinic", async () => {
+    expect(
+      (
+        await call("public/clinics/HK001/conversation", {
+          capability: "ABC123",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call("public/clinics/HK001/conversation", {
+          capability: randomBytes(32).toString("base64url"),
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (await call("public/clinics/HK002/conversation", { capability })).status,
+    ).toBe(404);
+    const value = await (await room()).json();
+    expect(value.status).toBe("new");
+    expect(value.messages).toEqual([]);
+    expect(value.service_id).toBeUndefined();
+  });
+  it("shares messages both ways and makes explicit retries idempotent", async () => {
+    const message = { message: "I prefer writing.", nonce: randomUUID() };
+    expect((await room(message)).status).toBe(200);
+    expect((await room(message)).status).toBe(200);
+    const staff = await (
+      await call(`staff/requests/${id}/messages`, undefined, sessions.intake)
+    ).json();
+    expect(staff.messages).toHaveLength(1);
+    expect(staff.messages[0].sender).toBe("patient");
+    expect(
+      (
+        await call(
+          `staff/requests/${id}/messages`,
+          { message: "Please wait nearby.", nonce: randomUUID() },
+          sessions.intake,
+        )
+      ).status,
+    ).toBe(200);
+    const value = await (await room()).json();
+    expect(value.messages.map((m: { sender: string }) => m.sender)).toEqual([
+      "patient",
+      "staff",
+    ]);
+  });
+  it("denies cross-clinic, out-of-scope clinician and admin access", async () => {
+    await room({ message: "Synthetic private message", nonce: randomUUID() });
+    for (const role of ["other", "clinician", "admin"]) {
+      expect(
+        (await call(`staff/requests/${id}/messages`, undefined, sessions[role]))
+          .status,
+      ).toBe(404);
+      expect(
+        (
+          await call(
+            `staff/requests/${id}/messages`,
+            { message: "No access", nonce: randomUUID() },
+            sessions[role],
+          )
+        ).status,
+      ).toBe(404);
+    }
+  });
+  it("deletes messages immediately on completion and blocks further sends", async () => {
+    await room({ message: "Test message", nonce: randomUUID() });
+    for (const [version, action] of [
+      "acknowledge",
+      "start",
+      "complete",
+    ].entries())
+      expect(
+        (
+          await call(
+            `staff/requests/${id}`,
+            { action, version },
+            sessions.intake,
+            "PATCH",
+          )
+        ).status,
+      ).toBe(200);
+    const result = await (await room()).json();
+    expect(result.status).toBe("completed");
+    expect(result.messages).toEqual([]);
+    expect(
+      (
+        await owner.query(
+          "SELECT * FROM hk.request_messages WHERE request_id=$1",
+          [id],
+        )
+      ).rowCount,
+    ).toBe(0);
+    expect(
+      (await room({ message: "Too late", nonce: randomUUID() })).status,
+    ).toBe(409);
+  });
+  it("hides expired conversations and deletes them with the parent request", async () => {
+    await room({ message: "Expires with request", nonce: randomUUID() });
+    await owner.query(
+      "UPDATE hk.requests_active SET expires_at=now()-interval '1 second' WHERE id=$1",
+      [id],
+    );
+    expect((await room()).status).toBe(404);
+    expect(
+      (await call(`staff/requests/${id}/messages`, undefined, sessions.intake))
+        .status,
+    ).toBe(404);
+    await owner.query("SELECT hk.cleanup()");
+    expect(
+      (
+        await owner.query(
+          "SELECT * FROM hk.request_messages WHERE request_id=$1",
+          [id],
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+  it("rejects oversized messages and unexpected fields", async () => {
+    expect(
+      (await room({ message: "x".repeat(501), nonce: randomUUID() })).status,
+    ).toBe(400);
+    expect(
+      (
+        await call("public/clinics/HK001/conversation", {
+          capability,
+          message: { message: "test", nonce: randomUUID(), name: "unwanted" },
+        })
+      ).status,
+    ).toBe(400);
+  });
+  it("clears messages immediately when the patient cancels", async () => {
+    await room({ message: "Cancel test", nonce: randomUUID() });
+    expect(
+      (await call("public/requests/current/cancel", { capability })).status,
+    ).toBe(200);
+    expect(
+      (
+        await owner.query(
+          "SELECT * FROM hk.request_messages WHERE request_id=$1",
+          [id],
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+  it("uses a reproducible 100-bit private code without embedding the clinic reference", async () => {
+    const key = newAccessCode();
+    expect(key).toMatch(/^[0-9A-HJKMNP-TV-Z]{20}$/);
+    const cap = await accessCapability(key);
+    expect(cap).toHaveLength(43);
+    expect(await accessCapability(displayAccessCode(key).toLowerCase())).toBe(
+      cap,
+    );
+    await expect(accessCapability("ABC123")).rejects.toThrow();
+    expect(Object.keys(conversationCopy.zu)).toEqual(
+      Object.keys(conversationCopy.en),
+    );
+    expect(Object.keys(conversationCopy.nd)).toEqual(
+      Object.keys(conversationCopy.en),
+    );
+  });
+});

@@ -1,0 +1,45 @@
+{
+  "name": "healthkey",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:setup": "node --env-file=.env.local --import tsx scripts/setup.ts",
+    "cleanup": "node --env-file=.env.local --import tsx scripts/cleanup.ts",
+    "lint": "eslint .",
+    "format": "prettier --write src scripts tests docs *.ts *.mjs *.json"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@supabase/supabase-js": "^2.100.0",
+    "better-auth": "^1.7.12",
+    "lucide-react": "^0.577.0",
+    "next": "16.4.0",
+    "pg": "^8.16.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
+    "@playwright/test": "^1.58.2",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.0",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "type": "module"
+}

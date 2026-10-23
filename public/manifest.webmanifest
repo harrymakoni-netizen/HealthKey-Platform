@@ -1,0 +1,17 @@
+{
+  "name": "HealthKey",
+  "short_name": "HealthKey",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f5",
+  "theme_color": "#0b3342",
+  "description": "Private clinic service access",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target": "https://healthkey-omega.vercel.app",
+  "checked_at": "2026-10-10T11:16:55.112Z",
+  "checks": [
+    "Private access code re-entry after clearing",
+    "Patient-to-staff message",
+    "Staff-to-patient reply",
+    "Acknowledged and in-progress updates",
+    "Completion clears conversation",
+    "No localStorage or sessionStorage data"
+  ]
+}

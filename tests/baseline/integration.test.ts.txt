@@ -1,0 +1,575 @@
+import { beforeAll, afterAll, describe, it, expect } from "vitest";
+import { Pool } from "pg";
+import type { Service } from "../src/lib/contracts";
+import { readFileSync } from "node:fs";
+import { randomBytes, createHash } from "node:crypto";
+process.loadEnvFile(".env.local");
+if (
+  process.env.DEMO_MODE !== "true" ||
+  !new URL(process.env.MIGRATION_DATABASE_URL!).hostname.match(
+    /^(127\.0\.0\.1|localhost)$/,
+  )
+)
+  throw Error(
+    "Integration tests require the isolated local synthetic database.",
+  );
+const owner = new Pool({
+    connectionString: process.env.MIGRATION_DATABASE_URL,
+  }),
+  app = new Pool({ connectionString: process.env.DATABASE_URL });
+const base = "http://localhost:3000/api";
+const secrets = JSON.parse(readFileSync(".local/secrets.json", "utf8"));
+let services: { id: string; key: string }[],
+  otherServices: { id: string }[],
+  intake: string,
+  other: string,
+  clinician: string,
+  admin: string;
+const cap = () => randomBytes(32).toString("base64url");
+async function call(
+  path: string,
+  body?: unknown,
+  token?: string,
+  method?: string,
+) {
+  return fetch(base + "/" + path, {
+    method: method ?? (body ? "POST" : "GET"),
+    headers: {
+      Origin: "http://localhost:3000",
+      "Content-Type": "application/json",
+      ...(token ? { Cookie: `hk_staff=${token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+async function login(key: string) {
+  const r = await call("auth/login", {
+    email: `${key}@healthkey.test`,
+    password: secrets.password,
+  });
+  expect(r.status).toBe(200);
+  return r.headers
+    .getSetCookie()
+    .find((x) => x.startsWith("hk_staff="))!
+    .split(";")[0]
+    .slice(9);
+}
+async function create(sid = services[0].id, capability = cap()) {
+  const r = await call("public/clinics/HK001/requests", {
+    service_id: sid,
+    communication_pref: "writing",
+    capability,
+  });
+  expect(r.status).toBe(201);
+  return { ...(await r.json()), capability };
+}
+beforeAll(async () => {
+  await owner.query("SELECT hk.cleanup()");
+  // Isolate reporting fixtures from earlier synthetic runs, including previous days.
+  // The module guard above restricts this suite to the local demo database.
+  for (const table of ["analytics_daily", "wait_histogram", "usage_daily"]) {
+    await owner.query(
+      `DELETE FROM hk.${table} WHERE clinic_id IN (SELECT id FROM hk.clinics WHERE code IN ('HK001','HK002'))`,
+    );
+  }
+  services = (await (await call("public/clinics/HK001/config")).json())
+    .services;
+  otherServices = (await (await call("public/clinics/HK002/config")).json())
+    .services;
+  [intake, other, clinician, admin] = await Promise.all(
+    ["intake", "other", "clinician", "admin"].map(login),
+  );
+}, 60000);
+afterAll(async () => {
+  await owner.query(
+    "UPDATE hk.requests_active SET expires_at=now()-interval '1 second' WHERE clinic_id IN (SELECT id FROM hk.clinics WHERE code IN ('HK001','HK002'))",
+  );
+  await owner.query("SELECT hk.cleanup()");
+  await owner.end();
+  await app.end();
+});
+describe("API and database boundaries", () => {
+  it("requires authentication for staff queues", async () =>
+    expect((await call("staff/queue")).status).toBe(401));
+  it("rejects public PII and service IDs from another clinic", async () => {
+    expect(
+      (
+        await call("public/clinics/HK001/requests", {
+          service_id: services[0].id,
+          communication_pref: null,
+          capability: cap(),
+          name: "not allowed",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call("public/clinics/HK001/requests", {
+          service_id: otherServices[0].id,
+          communication_pref: null,
+          capability: cap(),
+        })
+      ).status,
+    ).toBe(400);
+  });
+  it("rejects mutations from other origins", async () => {
+    const r = await fetch(base + "/auth/login", {
+      method: "POST",
+      headers: {
+        Origin: "https://untrusted.invalid",
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    expect(r.status).toBe(403);
+  });
+  it("creates idempotently with no service or token in response", async () => {
+    const capability = cap();
+    const a = await create(undefined, capability),
+      b = await create(undefined, capability);
+    expect(a.public_code).toBe(b.public_code);
+    expect(Object.keys(a).sort()).toEqual([
+      "capability",
+      "expires_at",
+      "public_code",
+      "status",
+    ]);
+    expect(
+      (
+        await owner.query(
+          "SELECT count(*)::int n FROM hk.requests_active WHERE capability_hash=$1",
+          [createHash("sha256").update(capability).digest("hex")],
+        )
+      ).rows[0].n,
+    ).toBe(1);
+  });
+  it("prevents cross-clinic reads and mutations", async () => {
+    const r = await create();
+    const q = await (await call("staff/queue", undefined, intake)).json();
+    const id = q.requests.find(
+      (x: { public_code: string }) => x.public_code === r.public_code,
+    ).id;
+    const foreign = await (await call("staff/queue", undefined, other)).json();
+    expect(foreign.requests.some((x: { id: string }) => x.id === id)).toBe(
+      false,
+    );
+    expect(
+      (
+        await call(
+          `staff/requests/${id}`,
+          { action: "acknowledge", version: 0 },
+          other,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(404);
+  });
+  it("restricts clinicians to their service or assignment", async () => {
+    const r = await create(
+      services.find((s) => s.key === "family_planning")!.id,
+    );
+    const q = await (await call("staff/queue", undefined, clinician)).json();
+    expect(
+      q.requests.some(
+        (x: { public_code: string }) => x.public_code === r.public_code,
+      ),
+    ).toBe(false);
+  });
+  it("does not give administrators implicit request access", async () =>
+    expect((await call("staff/queue", undefined, admin)).status).toBe(403));
+  it("enforces RLS with anonymous database role", async () => {
+    expect(
+      (await app.query("SELECT * FROM hk.requests_active")).rows,
+    ).toHaveLength(0);
+    await expect(app.query("SELECT * FROM hk.throttles")).rejects.toThrow();
+  });
+  it("requires capability for cancellation and rejects guessing", async () => {
+    const r = await create();
+    expect(
+      (
+        await call(`public/requests/${r.public_code}/cancel`, {
+          capability: cap(),
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await call(`public/requests/${r.public_code}/cancel`, {
+          capability: r.capability,
+        })
+      ).status,
+    ).toBe(200);
+  });
+  it("performs lifecycle, rejects stale versions and purges linked events", async () => {
+    const r = await create();
+    let q = await (await call("staff/queue", undefined, intake)).json();
+    const item = q.requests.find(
+      (x: { public_code: string }) => x.public_code === r.public_code,
+    );
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "complete", version: 0 },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "acknowledge", version: 0 },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "start", version: 0 },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "start", version: 1 },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "complete", version: 2 },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(200);
+    q = await (await call("staff/queue", undefined, intake)).json();
+    expect(q.requests.some((x: { id: string }) => x.id === item.id)).toBe(
+      false,
+    );
+    await owner.query("SELECT hk.cleanup()");
+    expect(
+      (
+        await owner.query("SELECT * FROM hk.requests_active WHERE id=$1", [
+          item.id,
+        ])
+      ).rowCount,
+    ).toBe(0);
+    expect(
+      (
+        await owner.query(
+          "SELECT * FROM hk.request_events WHERE request_id=$1",
+          [item.id],
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+  it("hides expired rows even before cleanup", async () => {
+    const r = await create();
+    await owner.query(
+      "UPDATE hk.requests_active SET expires_at=now()-interval '1 second' WHERE public_code=$1",
+      [r.public_code],
+    );
+    const q = await (await call("staff/queue", undefined, intake)).json();
+    expect(
+      q.requests.some(
+        (x: { public_code: string }) => x.public_code === r.public_code,
+      ),
+    ).toBe(false);
+  });
+  it("fails closed when cleanup has stalled", async () => {
+    await owner.query(
+      "UPDATE hk.maintenance SET last_cleanup=now()-interval '6 minutes'",
+    );
+    try {
+      const r = await call("public/clinics/HK001/requests", {
+        service_id: services[0].id,
+        communication_pref: null,
+        capability: cap(),
+      });
+      expect(r.status).toBe(503);
+    } finally {
+      await owner.query("SELECT hk.cleanup()");
+    }
+  });
+  it("withholds small report cells and complementary totals", async () => {
+    const r = await (await call("admin/analytics", undefined, admin)).json();
+    expect(r.suppressed).toBe(true);
+    expect(r.rows).toEqual([]);
+    expect(r).not.toHaveProperty("total");
+  });
+  it("revokes access when staff is deactivated", async () => {
+    const id = (
+      await owner.query(
+        "SELECT id FROM hk.staff_users WHERE name='Other clinic intake'",
+      )
+    ).rows[0].id;
+    await owner.query("UPDATE hk.staff_users SET active=false WHERE id=$1", [
+      id,
+    ]);
+    try {
+      expect((await call("staff/queue", undefined, other)).status).toBe(403);
+    } finally {
+      await owner.query("UPDATE hk.staff_users SET active=true WHERE id=$1", [
+        id,
+      ]);
+    }
+  });
+  it("assigns a request and grants only the assigned clinician access", async () => {
+    const r = await create(
+      services.find((s) => s.key === "family_planning")!.id,
+    );
+    const q = await (await call("staff/queue", undefined, intake)).json();
+    const item = q.requests.find(
+      (x: { public_code: string }) => x.public_code === r.public_code,
+    );
+    const target = (
+      await owner.query("SELECT id FROM hk.staff_users WHERE name='Counsellor'")
+    ).rows[0].id;
+    expect(
+      (
+        await call(
+          `staff/requests/${item.id}`,
+          { action: "assign", version: 0, assignee: target },
+          intake,
+          "PATCH",
+        )
+      ).status,
+    ).toBe(200);
+    const visible = await (
+      await call("staff/queue", undefined, clinician)
+    ).json();
+    expect(visible.requests.some((x: { id: string }) => x.id === item.id)).toBe(
+      true,
+    );
+  });
+  it("rejects new requests for disabled services", async () => {
+    const id = services[0].id;
+    await owner.query("UPDATE hk.services SET active=false WHERE id=$1", [id]);
+    try {
+      expect(
+        (
+          await call("public/clinics/HK001/requests", {
+            service_id: id,
+            communication_pref: null,
+            capability: cap(),
+          })
+        ).status,
+      ).toBe(400);
+    } finally {
+      await owner.query("UPDATE hk.services SET active=true WHERE id=$1", [id]);
+    }
+  });
+  it("applies per-session rate limits", async () => {
+    const cookie = "hk_throttle=" + randomBytes(16).toString("hex");
+    const statuses = [];
+    for (let i = 0; i < 9; i++) {
+      const r = await fetch(base + "/public/clinics/HK001/requests", {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost:3000",
+          "Content-Type": "application/json",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          service_id: services[0].id,
+          communication_pref: null,
+          capability: cap(),
+        }),
+      });
+      statuses.push(r.status);
+    }
+    expect(statuses.slice(0, 8).every((s) => s === 201)).toBe(true);
+    expect(statuses[8]).toBe(429);
+  });
+  it("prevents an older preview from publishing a newer draft", async () => {
+    const c = await (await call("admin/config", undefined, admin)).json();
+    const draft = {
+      version: c.version,
+      settings: c.settings,
+      services: c.services.map(
+        ({ id, active, sort_order, labels, help, icon }: Service) => ({
+          id,
+          active,
+          sort_order,
+          labels,
+          help,
+          icon,
+        }),
+      ),
+    };
+    const a = await (
+      await call("admin/config/draft", draft, admin, "PUT")
+    ).json();
+    const b = await (
+      await call("admin/config/draft", draft, admin, "PUT")
+    ).json();
+    expect(a.revision).not.toBe(b.revision);
+    expect(
+      (
+        await call(
+          "admin/config/publish",
+          { version: c.version, revision: a.revision },
+          admin,
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await call(
+          "admin/config/publish",
+          { version: c.version, revision: b.revision },
+          admin,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await owner.query("SELECT * FROM hk.config_versions WHERE version=$1", [
+          c.version + 1,
+        ])
+      ).rowCount,
+    ).toBeGreaterThan(0);
+  });
+  it("denies intake staff administration access", async () =>
+    expect((await call("admin/config", undefined, intake)).status).toBe(403));
+  it("cleanup is idempotent and does not double-count aggregates", async () => {
+    await owner.query("SELECT hk.cleanup()");
+    const a = (
+      await owner.query(
+        "SELECT coalesce(sum(count),0)::int n FROM hk.analytics_daily",
+      )
+    ).rows[0].n;
+    await owner.query("SELECT hk.cleanup()");
+    const b = (
+      await owner.query(
+        "SELECT coalesce(sum(count),0)::int n FROM hk.analytics_daily",
+      )
+    ).rows[0].n;
+    expect(b).toBe(a);
+  });
+
+  it("counts only allowlisted, unlinked usage metrics", async () => {
+    expect(
+      (
+        await call("public/clinics/HK001/metrics", {
+          metric: "language",
+          value: "sn",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await call("public/clinics/HK001/metrics", {
+          metric: "language",
+          value: "sn",
+          service_id: services[0].id,
+        })
+      ).status,
+    ).toBe(400);
+    const r = await (await call("admin/usage", undefined, admin)).json();
+    expect(r.suppressed).toBe(true);
+    expect(r.rows).toEqual([]);
+  });
+  it("allows platform configuration without granting request access", async () => {
+    const platform = await login("platform");
+    expect((await call("staff/queue", undefined, platform)).status).toBe(403);
+    const org = await call(
+      "platform/organizations",
+      { name: "Synthetic test network" },
+      platform,
+    );
+    expect(org.status).toBe(201);
+    const oid = (await org.json()).id;
+    const code = "TEST" + randomBytes(4).toString("hex").toUpperCase();
+    const clinic = await call(
+      "platform/clinics",
+      { name: "Synthetic test clinic", code, organization_id: oid },
+      platform,
+    );
+    expect(clinic.status).toBe(201);
+    const id = (await clinic.json()).id;
+    expect((await call(`public/clinics/${code}/config`)).status).toBe(404);
+    await owner.query("DELETE FROM hk.audit WHERE clinic_id=$1", [id]);
+    await owner.query("DELETE FROM hk.services WHERE clinic_id=$1", [id]);
+    await owner.query("DELETE FROM hk.clinics WHERE id=$1", [id]);
+    await owner.query("DELETE FROM hk.organizations WHERE id=$1", [oid]);
+  });
+
+  it("lets an administrator configure a paused clinic while public and intake access stay blocked", async () => {
+    const cid = "11111111-1111-4111-8111-111111111111";
+    await owner.query("UPDATE hk.clinics SET active=false WHERE id=$1", [cid]);
+    try {
+      expect((await call("public/clinics/HK001/config")).status).toBe(404);
+      expect((await call("staff/queue", undefined, intake)).status).toBe(403);
+      expect((await call("admin/config", undefined, admin)).status).toBe(200);
+    } finally {
+      await owner.query("UPDATE hk.clinics SET active=true WHERE id=$1", [cid]);
+    }
+  });
+  it("publishes sufficiently large finalized counts and an exact aggregate median", async () => {
+    const cid = "11111111-1111-4111-8111-111111111111";
+    const day = (
+      await owner.query(
+        "SELECT ((now() AT TIME ZONE 'Africa/Harare')::date-1)::text AS report_day",
+      )
+    ).rows[0].report_day;
+    await owner.query(
+      "INSERT INTO hk.analytics_daily VALUES($1,$2,$3,'completed',10)",
+      [cid, day, services[0].id],
+    );
+    await owner.query(
+      "INSERT INTO hk.wait_histogram VALUES($1,$2,10,5),($1,$2,20,5)",
+      [cid, day],
+    );
+    try {
+      const report = await (
+        await call("admin/analytics", undefined, admin)
+      ).json();
+      expect(report.suppressed).toBe(false);
+      expect(
+        report.rows.find((r: { outcome: string }) => r.outcome === "completed")
+          .count,
+      ).toBe(10);
+      expect(report.median_wait).toBe(15);
+    } finally {
+      await owner.query(
+        "DELETE FROM hk.analytics_daily WHERE clinic_id=$1 AND day=$2",
+        [cid, day],
+      );
+      await owner.query(
+        "DELETE FROM hk.wait_histogram WHERE clinic_id=$1 AND day=$2",
+        [cid, day],
+      );
+    }
+  });
+  it("uses a cleanup role that cannot read request content", async () => {
+    const maintenance = new Pool({
+      connectionString: process.env.MAINTENANCE_DATABASE_URL,
+    });
+    try {
+      await expect(
+        maintenance.query("SELECT * FROM hk.requests_active"),
+      ).rejects.toThrow();
+      expect(
+        (await maintenance.query("SELECT hk.healthy() ok")).rows[0].ok,
+      ).toBe(true);
+      await maintenance.query("SELECT hk.cleanup()");
+    } finally {
+      await maintenance.end();
+    }
+  });
+});

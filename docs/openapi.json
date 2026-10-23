@@ -1,0 +1,1408 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HealthKey API",
+    "version": "0.1.0",
+    "description": "Synthetic demonstration API. API.md documents full operational semantics and additional request contracts."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/public/clinics/{code}/config": {
+      "get": {
+        "summary": "Published clinic configuration",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/public/clinics/{code}/requests": {
+      "post": {
+        "summary": "Create anonymous request",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/public/requests/resolve": {
+      "post": {
+        "summary": "Resolve current request",
+        "parameters": [],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Capability"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/public/requests/{publicCode}/cancel": {
+      "post": {
+        "summary": "Cancel pending request",
+        "parameters": [
+          {
+            "name": "publicCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Capability"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/public/clinics/{code}/metrics": {
+      "post": {
+        "summary": "Count unlinked usage",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Staff sign-in",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Staff sign-out",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/auth/mfa/enroll": {
+      "post": {
+        "summary": "Enroll staff authenticator",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/auth/mfa": {
+      "post": {
+        "summary": "Verify authenticator",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/public/clinics/{code}/conversation": {
+      "post": {
+        "summary": "Read progress or send a private message",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Conversation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/staff/requests/{id}/messages": {
+      "get": {
+        "summary": "Read authorized request messages",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Send staff message",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Message"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/staff/me": {
+      "get": {
+        "summary": "Current staff membership",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/staff/queue": {
+      "get": {
+        "summary": "Scoped active queue",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/staff/requests/{id}": {
+      "patch": {
+        "summary": "Transition or assign request",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestAction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/config": {
+      "get": {
+        "summary": "Own clinic configuration",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/config/draft": {
+      "put": {
+        "summary": "Save complete configuration draft",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/config/publish": {
+      "post": {
+        "summary": "Publish exact previewed draft",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/staff": {
+      "get": {
+        "summary": "Own clinic staff",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/staff/{id}": {
+      "patch": {
+        "summary": "Update clinic staff permissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/analytics": {
+      "get": {
+        "summary": "Suppressed operational report",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/usage": {
+      "get": {
+        "summary": "Suppressed unlinked usage",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "summary": "Administrative change history",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/platform/organizations": {
+      "get": {
+        "summary": "List organizations",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create organization",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/platform/clinics": {
+      "get": {
+        "summary": "List clinic metadata",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create paused clinic",
+        "parameters": [],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/platform/clinics/{id}": {
+      "patch": {
+        "summary": "Pause or restore clinic",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "staff": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Minimal health check",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    },
+    "/internal/cleanup": {
+      "get": {
+        "summary": "Scheduled retention cleanup",
+        "parameters": [],
+        "security": [
+          {
+            "cron": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Operator-triggered retention cleanup",
+        "parameters": [],
+        "security": [
+          {
+            "cron": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operation succeeded; see API.md for response contract"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Access or origin denied"
+          },
+          "409": {
+            "description": "Conflicting state/version"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Service or retention unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "staff": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hk_staff"
+      },
+      "cron": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Message": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "nonce": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "message",
+          "nonce"
+        ],
+        "additionalProperties": false
+      },
+      "Conversation": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "capability": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "nonce": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": [
+              "message",
+              "nonce"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "capability"
+        ],
+        "additionalProperties": false
+      },
+      "CreateRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "communication_pref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "spoken",
+                  "writing",
+                  "pictures",
+                  "sign",
+                  "support"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capability": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          }
+        },
+        "required": [
+          "service_id",
+          "communication_pref",
+          "capability"
+        ],
+        "additionalProperties": false
+      },
+      "RequestAction": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "acknowledge",
+              "assign",
+              "start",
+              "complete"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "assignee": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "action",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "Settings": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "communication_options": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "spoken",
+                "writing",
+                "pictures",
+                "sign",
+                "support"
+              ]
+            }
+          },
+          "languages": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "en",
+                "sn",
+                "nd"
+              ]
+            }
+          },
+          "idle_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 600
+          },
+          "ttl_minutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 120
+          },
+          "urgent_enabled": {
+            "type": "boolean"
+          },
+          "open": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "after_hours": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "translation_reviewed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "communication_options",
+          "languages",
+          "idle_seconds",
+          "ttl_minutes",
+          "urgent_enabled",
+          "open",
+          "close",
+          "after_hours",
+          "translation_reviewed"
+        ],
+        "additionalProperties": false
+      },
+      "Capability": {
+        "type": "object",
+        "required": [
+          "capability"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "capability": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          }
+        }
+      }
+    }
+  }
+}

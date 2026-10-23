@@ -1,0 +1,345 @@
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { readFileSync } from "node:fs";
+const secrets = JSON.parse(readFileSync(".local/secrets.json", "utf8"));
+async function choose(page: import("@playwright/test").Page) {
+  await page.goto("/c/HK001");
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  await page.getByRole("radio", { name: /Family planning/ }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step" }).click();
+}
+test("public flow submits, hides the service and clears all browser state", async ({
+  page,
+}) => {
+  await choose(page);
+  await expect(
+    page.getByRole("heading", { name: "Family planning", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Your request is with the clinic." }),
+  ).toBeVisible();
+  await expect(page.locator(".receipt strong")).toHaveText(/^[A-F0-9]{6}$/);
+  await expect(page.getByText("Family planning", { exact: true })).toHaveCount(
+    0,
+  );
+  expect(page.url()).not.toContain("family");
+  expect(
+    await page.evaluate(() => ({
+      local: localStorage.length,
+      session: sessionStorage.length,
+    })),
+  ).toEqual({ local: 0, session: 0 });
+  await page
+    .getByRole("button", { name: "Clear screen", exact: true })
+    .last()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+});
+test("offline choice is never transmitted on reconnect", async ({
+  page,
+  context,
+}) => {
+  await choose(page);
+  let submissions = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && r.url().endsWith("/requests")) submissions++;
+  });
+  await context.setOffline(true);
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Delivery has not been confirmed." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Show my choice to staff" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Family planning" }),
+  ).toBeVisible();
+  await context.setOffline(false);
+  await page.waitForTimeout(1200);
+  expect(submissions).toBe(0);
+  await page
+    .getByRole("button", { name: "Clear screen", exact: true })
+    .last()
+    .click();
+  await expect(page.getByText("Family planning", { exact: true })).toHaveCount(
+    0,
+  );
+});
+test("all public languages and accessibility settings work", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "ChiShona", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "sn");
+  await expect(
+    page.getByRole("heading", { name: "Tinokubatsirai sei?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "IsiNdebele", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Singakusiza njani?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "English", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Accessibility", exact: true })
+    .click();
+  await page.getByLabel("Larger text").check();
+  await page.getByLabel("High contrast").check();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.locator(".public-app")).toHaveClass(
+    /large-text high-contrast/,
+  );
+});
+test("welcome, choices, review, modal and mobile reflow have no automated AA violations", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Start a private request" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page
+    .getByRole("button", { name: "Accessibility", exact: true })
+    .click();
+  expect(
+    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
+      .violations,
+  ).toEqual([]);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.getByRole("radio", { name: /Family planning/ }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step" }).click();
+  expect(
+    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
+      .violations,
+  ).toEqual([]);
+  await page.screenshot({ path: "docs/mobile-review.png", fullPage: true });
+});
+test("kiosk timeout clears choice and allows an extension", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto("/c/HK001?kiosk=1");
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  await page.getByRole("radio", { name: /Family planning/ }).check();
+  await page.clock.fastForward(71000);
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "I need more time" }).click();
+  await page.clock.fastForward(91000);
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+  await expect(page.getByRole("radio")).toHaveCount(0);
+});
+test("staff receives and completes a real submitted request", async ({
+  browser,
+  page,
+}) => {
+  await choose(page);
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  const code = await page.locator(".receipt strong").textContent();
+  const context = await browser.newContext();
+  const staff = await context.newPage();
+  await staff.goto("http://localhost:3000/staff");
+  await staff.getByLabel("Work email").fill("intake@healthkey.test");
+  await staff.getByLabel("Password", { exact: true }).fill(secrets.password);
+  await staff.getByRole("button", { name: "Sign in securely" }).click();
+  await expect(
+    staff.getByRole("heading", { name: "Private requests", exact: true }),
+  ).toBeVisible();
+  await staff.getByRole("button", { name: code!, exact: true }).click();
+  await expect(
+    staff.getByText("Family planning", { exact: true }).last(),
+  ).toBeVisible();
+  await staff.getByRole("button", { name: "Acknowledge", exact: true }).click();
+  await staff
+    .getByRole("button", { name: "Start support", exact: true })
+    .click();
+  await staff
+    .getByRole("button", { name: "Complete request", exact: true })
+    .click();
+  await expect(
+    staff.getByRole("button", { name: code!, exact: true }),
+  ).toHaveCount(0);
+  expect(
+    (
+      await new AxeBuilder({ page: staff })
+        .withTags(["wcag2a", "wcag2aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await staff.screenshot({ path: "docs/staff-workspace.png", fullPage: true });
+  await context.close();
+});
+test("administrator previews and publishes settings and sees suppressed reports", async ({
+  page,
+}) => {
+  await page.goto("/admin");
+  await page.getByLabel("Work email").fill("admin@healthkey.test");
+  await page.getByLabel("Password", { exact: true }).fill(secrets.password);
+  await page.getByRole("button", { name: "Sign in securely" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Service menu", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Clinic settings", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Save & preview changes" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: /Publish version/ }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Configuration published",
+  );
+  await page.getByRole("button", { name: "Reports", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Small numbers stay private." }),
+  ).toBeVisible();
+});
+test("desktop welcome screenshot and console are clean", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Start a private request" }),
+  ).toBeVisible();
+  await page.screenshot({ path: "docs/desktop-welcome.png", fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test("previously loaded clinic starts offline without a sensitive outbox", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/c/HK001");
+  await expect(
+    page.getByRole("button", { name: "Start a private request" }),
+  ).toBeVisible();
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const cache = await caches.open("healthkey-public-v1");
+        const keys = await cache.keys();
+        return (
+          keys.some((r) => new URL(r.url).pathname === "/c/HK001") &&
+          keys.some((r) => r.url.includes("/config"))
+        );
+      }),
+    )
+    .toBe(true);
+  await page.waitForTimeout(1200);
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  await expect(
+    page.getByRole("radio", { name: /Family planning/ }),
+  ).toBeVisible();
+  const urls = await page.evaluate(async () => {
+    const out: string[] = [];
+    for (const name of await caches.keys()) {
+      const c = await caches.open(name);
+      out.push(...(await c.keys()).map((r) => r.url));
+    }
+    return out;
+  });
+  expect(
+    urls.every(
+      (url) =>
+        !url.includes("/staff") &&
+        !url.includes("/admin") &&
+        !url.endsWith("/requests"),
+    ),
+  ).toBe(true);
+  expect(await page.evaluate(() => indexedDB.databases())).toEqual([]);
+});
+test("a lost response can be resolved without resubmitting the selection", async ({
+  page,
+}) => {
+  let posts = 0;
+  await page.route("**/api/public/clinics/HK001/requests", async (route) => {
+    posts++;
+    await route.fetch();
+    await route.abort("failed");
+  });
+  await choose(page);
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  await expect(page.locator("p[role=alert]")).toContainText(
+    "Your request may have arrived",
+  );
+  await page.getByRole("button", { name: "Check delivery" }).click();
+  await expect(page.locator(".receipt strong")).toHaveText(/^[A-F0-9]{6}$/);
+  expect(posts).toBe(1);
+});
+test("keyboard-only public flow and 200% text enlargement remain usable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/");
+  await page.evaluate(() => (document.documentElement.style.fontSize = "200%"));
+  await page.getByRole("button", { name: "Start a private request" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "What support would you like?" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("radio").first()).toBeChecked();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Continue", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "How would you prefer to communicate?" }),
+  ).toBeVisible();
+});
+test("Back and bfcache restore only a neutral kiosk screen", async ({
+  page,
+}) => {
+  await page.goto("/c/HK001?kiosk=1");
+  await page.getByRole("button", { name: "Start a private request" }).click();
+  await page.getByRole("radio", { name: /Family planning/ }).check();
+  await page.goto("/staff");
+  await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "How can we help?" }),
+  ).toBeVisible();
+  await expect(page.getByRole("radio")).toHaveCount(0);
+});
