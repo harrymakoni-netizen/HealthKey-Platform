@@ -12,11 +12,21 @@ The project is being developed for a proposed South African pilot, initially foc
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [Public platform](https://healthkey-connect.vercel.app)                             | Request support or reopen a request using its private access code |
 | [Staff dashboard](https://healthkey-connect.vercel.app/staff)                       | Reception, assigned practitioners and receiving staff             |
-| [Administration](https://healthkey-connect.vercel.app/admin)                        | Provider management, clinic settings and staff permissions        |
 | [Shared-device entry](https://healthkey-connect.vercel.app/c/HK001?kiosk=1)         | Demonstrate kiosk inactivity warnings and session clearing        |
 | [GitHub Actions](https://github.com/harrymakoni-netizen/HealthKey-Platform/actions) | Automated verification runs                                       |
 
-Public users do not need an account. Staff credentials are shared privately by the project owner; passwords and private access documents are not included in this repository.
+Public users do not need an account.
+
+### Admin dashboard — judge access
+
+[Open the admin dashboard](https://healthkey-connect.vercel.app/admin)
+
+- **Email:** `judges@healthkey-connect.test`
+- **Password:** `HealthKeyJudges2026!`
+
+These credentials are intentionally public for competition judging and work only in the synthetic HealthKey Connect demonstration. The account can manage the source demo clinic's providers, configuration and staff permissions. It has no platform-owner privileges or routine access to private conversations. Use fictional data only; this is a shared demonstration environment.
+
+Other staff credentials and private access documents remain outside this repository.
 
 **Before presenting:** source and receiving administrators must confirm monitoring and refresh provider availability. Availability deliberately expires; the demo does not silently make an unavailable service appear available.
 
