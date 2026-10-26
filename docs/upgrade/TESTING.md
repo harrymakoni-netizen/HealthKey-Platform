@@ -11,3 +11,6 @@ Current checks are recorded in the final release evidence. Unit/API tests cover 
 Browser scenarios cover the synthetic two-provider journey, language persistence/Shona migration, six widths (320/375/390/768/1024/1440), landscape (768x375), mobile administration, 200% text enlargement, selected axe checks, offline no-auto-send and shared-kiosk timeout. Screenshots in this folder document rendered reviews. Run API/database tests and browser tests sequentially; expiry fixtures deliberately change local state.
 
 Failures are corrected and rerun; interrupted and failing runs are never counted as passes. Full manual screen-reader testing (NVDA, VoiceOver, TalkBack), open-keyboard testing on physical iOS/Android, native-language/practitioner review, performance under field connectivity, backup/PITR and safeguarding acceptance remain pending. Automated axe results and screenshots do not establish WCAG compliance.
+
+
+26 October submission-day verification: 39 unit/API tests, seven local production browser scenarios and seven hosted public-judge browser scenarios passed. The new regression proves an expired review cannot falsely show acceptance or send until explicit synthetic preparation succeeds. Preparation preserves the stale example and existing requests. See the submission-day record in RELEASE.md for deployment identity and scope.
