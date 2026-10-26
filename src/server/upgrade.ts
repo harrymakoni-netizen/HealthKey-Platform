@@ -168,11 +168,29 @@ export async function upgrade(
   await ensureCleanup();
   const p = path.slice(1),
     method = req.method;
+  if (p[0] === "demo" && p[1] === "prepare" && method === "POST") {
+    if (process.env.DEMO_MODE !== "true") fail("not_found", 404);
+    z.object({})
+      .strict()
+      .parse(await input(req));
+    return transaction(null, async (c) => {
+      await throttle(c, "synthetic-demo-prepare", 30);
+      const count = (await c.query("SELECT hk.prepare_demo() count")).rows[0]
+        .count;
+      if (count !== 2) fail("temporarily_unavailable", 503);
+      return ok({
+        demo: true,
+        simulation: true,
+        expires_in: 7200,
+        listings: (await listings(c)).map((r) => assess(r)),
+      });
+    });
+  }
   if (p[0] === "directory" && method === "GET")
     return transaction(null, async (c) => {
       const rows = await listings(c);
       return ok({
-        demo: true,
+        demo: process.env.DEMO_MODE === "true",
         listings: rows.map((r) => assess(r)),
         ruleset: "directory-1",
         external_messaging: "disabled",
@@ -353,14 +371,15 @@ export async function upgrade(
   if (p[0] === "private")
     return holder(req, async (c, cap) => {
       if (p[1] === "renew" && method === "POST") {
-        z.object({}).strict().parse(await input(req));
+        z.object({})
+          .strict()
+          .parse(await input(req));
         const jar = await cookies();
         const next = randomBytes(32).toString("base64url");
-        const result = await c.query("SELECT hk.exchange_holder($1,$2,120,$3) ok", [
-          cap,
-          hash(next),
-          hash(req.headers.get("x-hk-view") ?? ""),
-        ]);
+        const result = await c.query(
+          "SELECT hk.exchange_holder($1,$2,120,$3) ok",
+          [cap, hash(next), hash(req.headers.get("x-hk-view") ?? "")],
+        );
         if (!result.rows[0].ok) fail("session_expired", 401);
         await c.query("SELECT hk.resolve_holder($1,true)", [
           hash(jar.get("hk_private")!.value),

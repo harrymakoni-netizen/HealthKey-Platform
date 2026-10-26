@@ -26,9 +26,22 @@ Public users do not need an account.
 
 These credentials are intentionally public for competition judging and work only in the synthetic HealthKey Connect demonstration. The account can manage the source demo clinic's providers, configuration and staff permissions. It has no platform-owner privileges or routine access to private conversations. Use fictional data only; this is a shared demonstration environment.
 
-Other staff credentials and private access documents remain outside this repository.
+### Complete the judge workflow
 
-**Before presenting:** source and receiving administrators must confirm monitoring and refresh provider availability. Availability deliberately expires; the demo does not silently make an unavailable service appear available.
+All four public judge accounts use the demo password above. Use a separate browser profile/private window for each role.
+
+| Role                   | Public synthetic demo email               | Action                                                                |
+| ---------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| Administration         | `judges@healthkey-connect.test`           | Inspect provider management, configuration and permissions            |
+| Reception              | `judges.intake@healthkey-connect.test`    | Acknowledge the request and assign **Judge practitioner**             |
+| Assigned practitioner  | `judges.clinician@healthkey-connect.test` | Reply, start support and propose/send the consent-controlled referral |
+| Receiving practitioner | `judges.receiving@healthkey-connect.test` | Open Referrals, acknowledge and confirm handover                      |
+
+Reception and practitioner roles sign in at the [staff dashboard](https://healthkey-connect.vercel.app/staff). Start on the [public platform](https://healthkey-connect.vercel.app), keep the private code, then use the role accounts above. Approve the exact disclosure on the public request before the practitioner sends it. Administration is separate from private conversations; it is not the messaging login.
+
+Owner/operator credentials and private access documents remain outside this repository.
+
+**Demo preparation:** the welcome screen explains that starting a request prepares the two fictional providers for two hours. This is an explicit synthetic simulation, not evidence of real service capacity. An expired review screen shows the effective status and offers **Prepare synthetic demo**. The stale third example is left unchanged; no requests, conversations or consent records are reset. Live/non-demo provider expiry rules remain enforced.
 
 ## The problem
 
@@ -129,7 +142,7 @@ On Linux, Playwright may also require system dependencies; use `npx playwright i
 
 Run API/database tests and browser tests **sequentially**: expiry fixtures deliberately change local state. Integration tests enforce a loopback database and demo mode. Never point them at a real clinic database.
 
-Recorded verification includes 38 unit/API tests and six browser scenarios, with hosted checks covering the request-to-referral journey and layouts at 320, 375, 390, 768, 1024 and 1440 pixels, landscape, enlarged text, offline behaviour and kiosk clearing. The floating control also passed hosted keyboard and responsive checks. See [verification details](docs/upgrade/TESTING.md) and [current CI runs](https://github.com/harrymakoni-netizen/HealthKey-Platform/actions). Automated accessibility checks do not establish WCAG compliance.
+Recorded verification includes 39 unit/API tests and seven browser scenarios, with hosted checks covering the request-to-referral journey and layouts at 320, 375, 390, 768, 1024 and 1440 pixels, landscape, enlarged text, offline behaviour and kiosk clearing. The floating control also passed hosted keyboard and responsive checks. See [verification details](docs/upgrade/TESTING.md) and [current CI runs](https://github.com/harrymakoni-netizen/HealthKey-Platform/actions). Automated accessibility checks do not establish WCAG compliance.
 
 ## Current limitations and pilot requirements
 

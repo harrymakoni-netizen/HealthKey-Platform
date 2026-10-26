@@ -51,3 +51,13 @@ Follow the root README for local setup and checks, `DEMO.md` for the role-by-rol
 ## Floating accessibility control update
 
 The existing larger-text control floats at the bottom-right of the public interface, with a 56-pixel touch target, safe-area offsets, a keyboard-visible focus indicator, pressed state and forced-colour support. Extra document space permits the final content/actions to scroll clear of the control. No sensitive preference is persisted. Production build, ESLint and all six local browser scenarios passed after the change; the keyboard scenario checks the toggle and its continued visibility after scrolling.
+
+## Submission-day availability fix — 26 October 2026
+
+The public review screen used the provider's saved `availability` field even after `availability_expires_at` had elapsed. This could display “Accepting requests” while the server correctly rejected creation with `provider_unavailable`. The source and receiving fictional providers were restored, and the current live source-to-recipient workflow passed using independent public judge role accounts.
+
+The correction derives review status from the same expiry/open/monitoring assessment, disables online submission when unavailable and explains recovery. In demo mode, the welcome screen explicitly explains that starting a request prepares the two fictional fixtures for 120 minutes. The review also offers **Prepare synthetic demo** after expiry. Migration 015 grants a narrowly scoped fixture preparation function; the endpoint is disabled outside demo mode, accepts strict input, is rate limited and leaves requests, messages, consent, referrals and the stale third example intact. Live-provider expiry checks are retained.
+
+Independent public reception, assigned-practitioner and receiving-practitioner identities were added for judging, with their own public demo password and no platform-owner privileges. The README explains the exact roles and assignment steps. Other owner demonstration credentials were not published.
+
+Executed checks: production build and 39 unit/API tests passed, including expired-fixture recovery and preservation of the stale example and request records. Browser coverage includes a regression where an expired review cannot show acceptance or submit until preparation succeeds. A kiosk test was updated to await asynchronous demo preparation before advancing its clock. A clean local browser run passed all seven scenarios after that correction, including all required widths, offline behaviour and kiosk reset. Deployment verification is recorded separately; restored live availability alone is not a claim that the UI correction has been deployed.

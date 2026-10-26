@@ -2,14 +2,26 @@ import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 const hosted = process.env.HEALTHKEY_HOSTED_DEMO === "true";
+const publicJudges =
+  hosted && process.env.HEALTHKEY_PUBLIC_JUDGE_FLOW === "true";
 const password = JSON.parse(
-  readFileSync(hosted ? ".local/connect-credentials.json" : ".local/secrets.json", "utf8"),
+  readFileSync(
+    publicJudges
+      ? ".local/judge-demo.json"
+      : hosted
+        ? ".local/connect-credentials.json"
+        : ".local/secrets.json",
+    "utf8",
+  ),
 ).password;
 async function login(page: Page, role: string) {
   await page.goto("/staff");
   await page
     .getByLabel("Work email", { exact: true })
-    .fill(role + (hosted ? "@healthkey-connect.test" : "@healthkey.test"));
+    .fill(
+      (publicJudges ? (role === "admin" ? "judges" : "judges." + role) : role) +
+        (hosted ? "@healthkey-connect.test" : "@healthkey.test"),
+    );
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page
     .getByRole("button", { name: "Sign in securely", exact: true })
@@ -51,7 +63,15 @@ async function fits(page: Page) {
 }
 async function fitsAtRequiredSizes(page: Page) {
   const original = page.viewportSize();
-  for (const [width, height] of [[320, 812], [375, 812], [390, 844], [768, 1024], [1024, 768], [1440, 900], [768, 375]]) {
+  for (const [width, height] of [
+    [320, 812],
+    [375, 812],
+    [390, 844],
+    [768, 1024],
+    [1024, 768],
+    [1440, 900],
+    [768, 375],
+  ]) {
     await page.setViewportSize({ width, height });
     await fits(page);
   }
@@ -76,9 +96,13 @@ test("synthetic two-provider workflow: private entry, assigned chat, exact conse
   await intake
     .getByRole("button", { name: "Acknowledge", exact: true })
     .click();
-  await intake
-    .getByLabel("Assign practitioner", { exact: true })
-    .selectOption({ label: hosted ? "Demo clinician" : "Counsellor" });
+  await intake.getByLabel("Assign practitioner", { exact: true }).selectOption({
+    label: publicJudges
+      ? "Judge practitioner"
+      : hosted
+        ? "Demo clinician"
+        : "Counsellor",
+  });
   await intake
     .getByRole("button", { name: "Assign practitioner", exact: true })
     .click();
@@ -176,7 +200,9 @@ test("synthetic two-provider workflow: private entry, assigned chat, exact conse
   await expect(
     page
       .locator(".disclosure")
-      .getByText("Operational outcome: Staff-confirmed handover", { exact: true }),
+      .getByText("Operational outcome: Staff-confirmed handover", {
+        exact: true,
+      }),
   ).toBeVisible({ timeout: 15000 });
   await page.getByRole("button", { name: "Clear screen", exact: true }).click();
   await page
@@ -200,7 +226,12 @@ test("five languages persist through navigation; historical Shona preference bec
   context,
 }) => {
   await context.addCookies([
-    { name: "hk_language", value: "sn", domain: hosted ? "healthkey-connect.vercel.app" : "localhost", path: "/" },
+    {
+      name: "hk_language",
+      value: "sn",
+      domain: hosted ? "healthkey-connect.vercel.app" : "localhost",
+      path: "/",
+    },
   ]);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -224,6 +255,50 @@ test("five languages persist through navigation; historical Shona preference bec
   expect(
     await page.evaluate(() => [localStorage.length, sessionStorage.length]),
   ).toEqual([0, 0]);
+});
+test("expired review never shows accepting and explicit demo preparation restores submission", async ({
+  page,
+}) => {
+  await page.route("**/api/v2/directory", async (route) => {
+    const response = await route.fetch();
+    const value = await response.json();
+    value.listings = value.listings.map((p: Record<string, unknown>) => ({
+      ...p,
+      availability: "accepting",
+      availability_expires_at: "2020-01-01T00:00:00Z",
+    }));
+    await route.fulfill({ response, json: value });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", {
+      name: "Request a private conversation",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  const prepare = page.getByRole("button", {
+    name: "Prepare synthetic demo",
+    exact: true,
+  });
+  await expect(prepare).toBeVisible({ timeout: 15000 });
+  await expect(
+    page.getByRole("button", { name: "Send privately", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page
+      .locator(".review-detail")
+      .getByText("Accepting requests", { exact: true }),
+  ).toHaveCount(0);
+  await page.unroute("**/api/v2/directory");
+  await prepare.click();
+  await expect(
+    page.getByRole("button", { name: "Send privately", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Send privately", exact: true })
+    .click();
+  await expect(page.locator(".receipt strong")).toBeVisible();
 });
 test("responsive public, directory, consent entry and provider management at six widths and landscape", async ({
   page,
@@ -278,7 +353,10 @@ test("keyboard, 200 percent text, automated accessibility and private-reference 
 }) => {
   await page.setViewportSize({ width: 320, height: 812 });
   await page.goto("/");
-  const accessibility = page.getByRole("button", { name: "Larger text", exact: true });
+  const accessibility = page.getByRole("button", {
+    name: "Larger text",
+    exact: true,
+  });
   await accessibility.focus();
   await page.keyboard.press("Space");
   await expect(accessibility).toHaveAttribute("aria-pressed", "true");
@@ -343,6 +421,9 @@ test("shared kiosk clears session at timeout and warns with an extension", async
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("button", { name: "Continue", exact: true }),
+  ).toBeVisible();
   await page.clock.fastForward(71000);
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "I need more time" }).click();

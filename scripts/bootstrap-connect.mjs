@@ -15,6 +15,7 @@ try{
  if(!(await c.query("SELECT to_regclass('hk.creation_contracts') t")).rows[0].t)await c.query(readFileSync('database/012_view_and_integrity.sql','utf8'));
  if(!(await c.query("SELECT to_regprocedure('hk.cleanup_content()') t")).rows[0].t)await c.query(readFileSync('database/013_hourly_retention.sql','utf8'));
  if(!(await c.query("SELECT to_regclass('hk.referral_outcomes') t")).rows[0].t)await c.query(readFileSync('database/014_status_tombstones.sql','utf8'));
+ if(!(await c.query("SELECT to_regprocedure('hk.prepare_demo()') t")).rows[0].t)await c.query(readFileSync('database/015_demo_preparation.sql','utf8'));
  for(const [role,key]of [['healthkey_app','HK_APP_PASSWORD'],['healthkey_maintenance','HK_MAINTENANCE_PASSWORD'],['healthkey_auth','HK_AUTH_PASSWORD']]){
  const value=process.env[key];if(!/^[a-f0-9]{48}$/.test(value??''))throw Error('Missing role credential.');
  await c.query(`DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='${role}') THEN CREATE ROLE ${role} LOGIN; END IF; END $$`);

@@ -183,6 +183,55 @@ afterAll(async () => {
   await owner.end();
 });
 describe("Language and deterministic matching", () => {
+  it("explicit demo preparation recovers expired fictional providers without changing the stale example or requests", async () => {
+    const before = (
+      await owner.query(
+        "SELECT availability_expires_at,details_confirmed_at FROM hk.provider_listings WHERE id='c3333333-3333-4333-8333-333333333333'",
+      )
+    ).rows[0];
+    const requestCount = (
+      await owner.query("SELECT count(*) n FROM hk.requests_active")
+    ).rows[0].n;
+    await owner.query(
+      "UPDATE hk.provider_listings SET availability_expires_at=now()-interval '1 hour' WHERE id IN($1,$2)",
+      [sourceId, targetId],
+    );
+    expect(
+      (
+        await call("v2/request", {
+          clinic: "HK001",
+          nonce: randomUUID(),
+          communication_pref: "writing",
+          language: "en",
+        })
+      ).status,
+    ).toBe(409);
+    const prepared = await call("v2/demo/prepare", {});
+    expect(prepared.status).toBe(200);
+    const data = await prepared.json();
+    expect(data.simulation).toBe(true);
+    expect(
+      data.listings
+        .filter((p: Listing & { available: string }) =>
+          [sourceId, targetId].includes(p.id),
+        )
+        .every(
+          (p: Listing & { available: string }) => p.available === "accepting",
+        ),
+    ).toBe(true);
+    expect(
+      (
+        await owner.query(
+          "SELECT availability_expires_at,details_confirmed_at FROM hk.provider_listings WHERE id='c3333333-3333-4333-8333-333333333333'",
+        )
+      ).rows[0],
+    ).toEqual(before);
+    expect(
+      (await owner.query("SELECT count(*) n FROM hk.requests_active")).rows[0]
+        .n,
+    ).toBe(requestCount);
+    await create();
+  });
   it("covers every key in five languages and removes Shona", () => {
     expect(Object.keys(copy)).toEqual(["en", "nd", "zu", "xh", "af"]);
     for (const l of Object.keys(copy) as (keyof typeof copy)[]) {
@@ -427,10 +476,15 @@ describe("View-bound session and concurrency", () => {
     const a = await create();
     const renewed = await call("v2/private/renew", {}, a.cookie);
     expect(renewed.status).toBe(200);
-    const cookie = renewed.headers.getSetCookie().map((x) => x.split(";")[0]).join("; ");
+    const cookie = renewed.headers
+      .getSetCookie()
+      .map((x) => x.split(";")[0])
+      .join("; ");
     expect(cookie).not.toBe(a.cookie);
     expect(renewed.headers.getSetCookie().join(";")).toContain("Max-Age=120");
-    expect((await call("v2/private/room", undefined, a.cookie)).status).toBe(401);
+    expect((await call("v2/private/room", undefined, a.cookie)).status).toBe(
+      401,
+    );
     expect((await call("v2/private/room", undefined, cookie)).status).toBe(200);
   });
   it("rejects cookie-only reuse after the in-memory view has been destroyed", async () => {

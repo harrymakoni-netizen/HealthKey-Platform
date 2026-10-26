@@ -44,7 +44,9 @@ export function Shell({
 }) {
   const { t } = useLocale();
   return (
-    <div className={`upgrade-app ${large ? "large-text" : ""} ${accessibility ? "has-floating-accessibility" : ""}`}>
+    <div
+      className={`upgrade-app ${large ? "large-text" : ""} ${accessibility ? "has-floating-accessibility" : ""}`}
+    >
       <a className="skip-link" href="#main">
         {t("skipContent")}
       </a>
@@ -72,7 +74,9 @@ export function Shell({
           {t("staff")} <Icon name="arrow" size={16} />
         </a>
       </footer>
-      {accessibility && <div className="floating-accessibility">{accessibility}</div>}
+      {accessibility && (
+        <div className="floating-accessibility">{accessibility}</div>
+      )}
     </div>
   );
 }
@@ -104,7 +108,7 @@ export function ErrorNotice({ error }: { error: string }) {
           : error === "expired" || error === "session_expired"
             ? "expired"
             : error === "provider_unavailable"
-              ? "unavailable"
+              ? "providerNeedsRefresh"
               : "error",
       )}
     </p>

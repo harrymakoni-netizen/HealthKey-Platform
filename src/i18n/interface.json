@@ -214,7 +214,10 @@
     "clinic": "Clinic",
     "clinicCode": "Public clinic code",
     "createPausedClinic": "Create paused clinic",
-    "pausedClinicNote": "Clinic created with access paused. Provision an administrator and review all configuration before opening."
+    "pausedClinicNote": "Clinic created with access paused. Provision an administrator and review all configuration before opening.",
+    "demoStartNote": "Demo: starting a request prepares the two fictional providers for two hours. No real healthcare capacity is implied.",
+    "prepareDemo": "Prepare synthetic demo",
+    "providerNeedsRefresh": "This provider is not currently confirmed as accepting requests. In this synthetic demo, prepare the providers and try again."
   },
   "nd": {
     "welcome": "Singakusiza njani?",
@@ -431,7 +434,10 @@
     "clinic": "Ikliniki",
     "clinicCode": "Ikhodi yekliniki",
     "createPausedClinic": "Dala ikliniki emisiweyo",
-    "pausedClinicNote": "Ikliniki idaliwe imisiwe. Nika umphathi uhlole izilungiselelo ungakavuli."
+    "pausedClinicNote": "Ikliniki idaliwe imisiwe. Nika umphathi uhlole izilungiselelo ungakavuli.",
+    "demoStartNote": "Idemo: ukuqala isicelo kulungiselela abahlinzeki ababili abaqanjiweyo okwamahola amabili. Lokhu akutsho ukuthi usizo lwempilo lwangempela luyatholakala.",
+    "prepareDemo": "Lungiselela idemo",
+    "providerNeedsRefresh": "Akukaqinisekiswa ukuthi umhlinzeki wamukela izicelo khathesi. Kule demo, lungiselela abahlinzeki uzame futhi."
   },
   "zu": {
     "welcome": "Singakusiza kanjani?",
@@ -648,7 +654,10 @@
     "clinic": "Ikliniki",
     "clinicCode": "Ikhodi yekliniki",
     "createPausedClinic": "Dala ikliniki emisiwe",
-    "pausedClinicNote": "Ikliniki idaliwe imisiwe. Yabela umphathi ubuyekeze izilungiselelo ngaphambi kokuvula."
+    "pausedClinicNote": "Ikliniki idaliwe imisiwe. Yabela umphathi ubuyekeze izilungiselelo ngaphambi kokuvula.",
+    "demoStartNote": "Idemo: ukuqala isicelo kulungiselela abahlinzeki ababili abaqanjiwe amahora amabili. Lokhu akusho ukuthi kukhona usizo lwezempilo lwangempela.",
+    "prepareDemo": "Lungiselela idemo",
+    "providerNeedsRefresh": "Akuqinisekisiwe ukuthi lo mhlinzeki wamukela izicelo okwamanje. Kule demo, lungiselela abahlinzeki bese uzama futhi."
   },
   "xh": {
     "welcome": "Singakunceda njani?",
@@ -865,7 +874,10 @@
     "clinic": "Ikliniki",
     "clinicCode": "Ikhowudi yekliniki",
     "createPausedClinic": "Yenza ikliniki emisiweyo",
-    "pausedClinicNote": "Ikliniki yenziwe imisiwe. Yabela umlawuli uhlole uqwalaselo phambi kokuvula."
+    "pausedClinicNote": "Ikliniki yenziwe imisiwe. Yabela umlawuli uhlole uqwalaselo phambi kokuvula.",
+    "demoStartNote": "Idemo: ukuqala isicelo kulungiselela ababoneleli ababini abayintsomi iiyure ezimbini. Oku akuthethi ukuba kukho iinkonzo zempilo zokwenene.",
+    "prepareDemo": "Lungiselela idemo",
+    "providerNeedsRefresh": "Akuqinisekiswanga ukuba lo mboneleli uyazamkela izicelo ngoku. Kule demo, lungiselela ababoneleli uze uzame kwakhona."
   },
   "af": {
     "welcome": "Hoe kan ons help?",
@@ -1082,6 +1094,9 @@
     "clinic": "Kliniek",
     "clinicCode": "Openbare kliniekkode",
     "createPausedClinic": "Skep ’n onderbroke kliniek",
-    "pausedClinicNote": "Kliniek geskep met toegang onderbreek. Stel ’n administrateur aan en hersien instellings voor opening."
+    "pausedClinicNote": "Kliniek geskep met toegang onderbreek. Stel ’n administrateur aan en hersien instellings voor opening.",
+    "demoStartNote": "Demo: wanneer jy ’n versoek begin, word die twee fiktiewe diensverskaffers vir twee uur voorberei. Dit dui nie op werklike gesondheidsorgkapasiteit nie.",
+    "prepareDemo": "Berei die sintetiese demo voor",
+    "providerNeedsRefresh": "Hierdie diensverskaffer is nie tans bevestig as beskikbaar vir versoeke nie. Berei die diensverskaffers in hierdie sintetiese demo voor en probeer weer."
   }
 }

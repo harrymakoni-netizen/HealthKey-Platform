@@ -12,7 +12,7 @@ import {
   purposes,
   type Referral,
 } from "./upgrade-shared";
-import type { Listing } from "@/lib/matching";
+import { assess, type Listing } from "@/lib/matching";
 import { locales, type ClinicConfig } from "@/lib/contracts";
 import { languageNames } from "@/i18n/copy";
 type Step =
@@ -43,6 +43,7 @@ export default function PublicFlow({ code }: { code: string }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [online, setOnline] = useState(true),
+    [demo, setDemo] = useState(false),
     [kiosk, setKiosk] = useState(false),
     [large, setLarge] = useState(false),
     [privacy, setPrivacy] = useState(false),
@@ -93,8 +94,11 @@ export default function PublicFlow({ code }: { code: string }) {
     api<ClinicConfig>(`public/clinics/${code}/config`)
       .then(setConfig)
       .catch(() => setError("error"));
-    api<{ listings: Listing[] }>("v2/directory")
-      .then((r) => setList(r.listings))
+    api<{ listings: Listing[]; demo: boolean }>("v2/directory")
+      .then((r) => {
+        setList(r.listings);
+        setDemo(r.demo);
+      })
       .catch(() => {});
     setKiosk(new URLSearchParams(location.search).get("kiosk") === "1");
     setOnline(navigator.onLine);
@@ -178,7 +182,27 @@ export default function PublicFlow({ code }: { code: string }) {
     const timer = setInterval(refresh, 5000);
     return () => clearInterval(timer);
   }, [online, step, kind, requestedLanguage, area, accessible, matchingActive]);
-  const source = list.find((l) => l.clinic_id === config?.id);
+  const sourceListing = list.find((l) => l.clinic_id === config?.id);
+  const source = sourceListing ? assess(sourceListing) : undefined;
+  const sourceReady =
+    source?.available === "accepting" && source.open && source.monitored;
+  async function prepareDemo(start = false) {
+    if (!online || busy) return;
+    const gen = generation.current;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ listings: Listing[] }>("v2/demo/prepare", {});
+      if (gen !== generation.current) return;
+      setList(result.listings);
+      if (start) setStep("preferences");
+    } catch (e) {
+      if (gen === generation.current)
+        setError(e instanceof Error ? e.message : "error");
+    } finally {
+      if (gen === generation.current) setBusy(false);
+    }
+  }
   async function submit() {
     if (!online) {
       setStep("display");
@@ -313,10 +337,16 @@ export default function PublicFlow({ code }: { code: string }) {
           <div className="entry-grid">
             <section>
               <p className="lead">{t("intro")}</p>
+              {demo && <p className="quiet">{t("demoStartNote")}</p>}
               <div className="entry-actions">
                 <button
                   className="button primary"
-                  onClick={() => setStep("preferences")}
+                  disabled={busy || (online && (!config || !list.length))}
+                  onClick={() =>
+                    demo && online
+                      ? void prepareDemo(true)
+                      : setStep("preferences")
+                  }
                 >
                   {t("start")}
                   <Icon name="arrow" />
@@ -405,7 +435,11 @@ export default function PublicFlow({ code }: { code: string }) {
               <h2>{source?.public_name ?? config?.name ?? "HealthKey"}</h2>
               <Status
                 value={
-                  source?.monitored ? source.availability : "not_monitored"
+                  !source?.monitored
+                    ? "not_monitored"
+                    : !source.open
+                      ? "closed"
+                      : source.available
                 }
               />
               <p>
@@ -420,13 +454,27 @@ export default function PublicFlow({ code }: { code: string }) {
             <p>{t("contactNote")}</p>
             <p className="quiet">{t("privacyText")}</p>
             <p>{t("sentNote")}</p>
+            {!sourceReady && online && (
+              <p role="status" className="notice">
+                {t("providerNeedsRefresh")}
+              </p>
+            )}
+            {demo && online && !sourceReady && (
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() => void prepareDemo()}
+              >
+                {t("prepareDemo")}
+              </button>
+            )}
             <div className="action-row">
               <button className="button" onClick={() => setStep("preferences")}>
                 {t("back")}
               </button>
               <button
                 className="button primary"
-                disabled={busy}
+                disabled={busy || (online && !sourceReady)}
                 onClick={submit}
               >
                 {t("send")}

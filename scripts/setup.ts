@@ -16,7 +16,10 @@ await pool.query(readFileSync("database/002_completion.sql", "utf8"));
 if (!(await pool.query("SELECT to_regclass('hk.config_versions') t")).rows[0].t)
   await pool.query(readFileSync("database/003_configuration.sql", "utf8"));
 await pool.query(`ALTER ROLE healthkey_app PASSWORD '${secrets.app}'`);
-if (!(await pool.query("SELECT to_regprocedure('hk.cleanup_content()') t")).rows[0].t)
+if (
+  !(await pool.query("SELECT to_regprocedure('hk.cleanup_content()') t"))
+    .rows[0].t
+)
   await pool.query(readFileSync("database/006_health.sql", "utf8"));
 await pool.query(readFileSync("database/007_maintenance.sql", "utf8"));
 await pool.query(readFileSync("database/008_paused_admin.sql", "utf8"));
@@ -55,6 +58,10 @@ if (
   !(await pool.query("SELECT to_regclass('hk.referral_outcomes') t")).rows[0].t
 )
   await pool.query(readFileSync("database/014_status_tombstones.sql", "utf8"));
+if (
+  !(await pool.query("SELECT to_regprocedure('hk.prepare_demo()') t")).rows[0].t
+)
+  await pool.query(readFileSync("database/015_demo_preparation.sql", "utf8"));
 await pool.query(
   `ALTER ROLE healthkey_maintenance PASSWORD '${secrets.maintenance}'`,
 );
